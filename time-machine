@@ -1,0 +1,246 @@
+#!/bin/sh
+# https://github.com/murkl/time-machine
+
+script_title="Time Machine"
+
+script_file=$(readlink -f "$0")
+script_dir=$(dirname "$script_file")
+script_id=$(basename "$script_file")
+
+script_res_dir="$script_dir/res"
+script_config_file="$script_res_dir/config"
+script_icon_file=$script_res_dir/icon.svg
+
+desktop_file="$HOME/.local/share/applications/$script_id.desktop"
+
+rsync_script_url="https://raw.githubusercontent.com/laurent22/rsync-time-backup/master/rsync_tmbackup.sh"
+rsync_script="$script_res_dir/rsync_tmbackup.sh"
+
+exclude_file="$script_res_dir/exclude"
+log_dir="$script_dir/.log"
+
+log() {
+	echo "$(date "+%H:%M:%S") $script_id: $1"
+}
+
+# Create config file
+if [ ! -f "$script_config_file" ]; then
+	echo "source_dir=$HOME" >> $script_config_file
+	echo "destination_dir=" >> $script_config_file
+	log "$script_config_file file created"
+fi
+
+# Create exclude file
+if [ ! -f "$exclude_file" ]; then
+	echo "[Cc]ache*" >> $exclude_file
+    echo "[Tt]rash*" >> $exclude_file
+	echo ".cache*" >> $exclude_file
+    echo ".gvfs" >> $exclude_file
+    echo "~*" >> $exclude_file
+    log "$exclude_file created"
+fi
+
+# Import config file
+. "$script_config_file"
+
+send_notify() {
+    log "$1"
+    notify-send -i "$script_icon_file" "$script_title" "$1"
+}
+
+# Check dependencies
+if ! [ -x "$(command -v rsync)" ]; then
+	send_notify "rsync not installed"
+	exit 1;
+fi
+if ! [ -x "$(command -v xdg-open)" ]; then
+	send_notify "xdg-utils not installed"
+	exit 1;
+fi
+
+zenity() {
+    /usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --height=130 --width=350 "$@" 2>/dev/null
+}
+
+show_zenity_info() {
+    zenity --info --text "$1"
+}
+
+show_zenity_error() {
+    zenity --error --text "$1"
+}
+
+list_children_pid () {
+    local children_pid=$(ps -o pid= --ppid "$1")
+    for pid in $children_pid; do
+        list_children_pid "$pid"
+    done
+    echo "$children_pid"
+}
+
+show_exec_backup() {
+    rm -f -r "$log_dir"
+    mkdir "$log_dir"
+    result_file="$log_dir/result.txt"
+    touch "$destination_dir/backup.marker"
+    sleep 5 && sh "$rsync_script" --log-dir "$log_dir" "$source_dir" "$destination_dir" "$exclude_file"> "$result_file" & piped_pid=$!
+    tail -f /dev/null --pid $piped_pid | ( zenity --progress --text="Backup in progress..." --pulsate --auto-close || kill $(list_children_pid $piped_pid) )
+    send_notify "Backup finished"
+    log_file=$log_dir/$(basename `ls $log_dir/*.log`)
+    zenity --text-info --window-icon="$script_icon_file" --width=700 --height=500 --filename="$log_file"
+}
+
+show_browse_backup() {
+    xdg-open "$destination_dir"
+}
+
+show_edit_source_dir() {
+    directory=$(zenity --file-selection --directory)
+    if [ "$directory" != "" ]; then
+        replace_config_file_value "source_dir" "$directory"
+        send_notify "Source directory changed to: $directory"
+    fi
+}
+
+show_edit_destination_dir() {
+    directory=$(zenity --file-selection --directory)
+    if [ "$directory" != "" ]; then
+        replace_config_file_value "destination_dir" "$directory"
+        send_notify "Destination directory changed to: $directory"
+    fi
+}
+
+show_edit_exclude() {
+    res=$(zenity --text-info --height=300 --ok-label="Save" --cancel-label="Cancel" --editable --filename="$exclude_file")
+    if [ $? = 0 ]; then
+        echo "$res" > $exclude_file
+        send_notify "Exclude list saved"
+    fi
+}
+
+show_download_script() {
+    (
+        curl -Lk $rsync_script_url -o "$rsync_script"
+        chmod +x "$rsync_script"
+        echo "# $rsync_script successfully downloaded"
+    ) | zenity --progress --text="Downloading $rsync_script" --auto-kill --pulsate
+}
+
+replace_config_file_value() {
+    key=$1
+    value=$2
+    sed -i "/$key/c\\$key=$value" $script_config_file
+}
+
+check_rsync_script() {
+    if [ ! -f "$rsync_script" ]; then
+        zenity --question --text="$rsync_script not found. Download now?"
+        if [ $? == 1 ]; then
+            exit 0;
+        fi
+        show_download_script
+    fi
+}
+
+check_source_dir() {
+    if [ "$source_dir" == "" ]; then
+        show_zenity_error "You have to set source dir first!"
+        exit 1
+    fi
+    if [ ! -d "$source_dir" ]; then
+        show_zenity_error "$source_dir not exists!"
+        exit 1
+    fi
+}
+
+check_destination_dir() {
+    if [ "$destination_dir" == "" ]; then
+        show_zenity_error "You have to set destination dir first!"
+        exit 1
+    fi
+    if [ ! -d "$destination_dir" ]; then
+        show_zenity_error "$destination_dir not exists!"
+        exit 1
+    fi
+}
+
+create_desktop_file() {
+    rm -f $desktop_file
+    echo "[Desktop Entry]" >> $desktop_file
+    echo "Name=$script_title" >> $desktop_file
+    echo "Icon=$script_icon_file" >> $desktop_file
+    echo "Exec=\"$script_file\"" >> $desktop_file
+    echo "Type=Application" >> $desktop_file
+    chmod +x $desktop_file
+    send_notify "$desktop_file created"
+}
+
+remove_desktop_file() {
+    rm -f $desktop_file
+    send_notify "$desktop_file removed"
+}
+
+while(true); do
+    # Refresh config file
+    . "$script_config_file"
+
+    item_01="Start Backup"
+    item_02="Browse Backup"
+    item_03="Change Source"
+    item_04="Change Destination"
+    item_05="Edit Exclude List"
+    item_06="Update Script"
+    if [ ! -f $desktop_file ]; then
+	    item_07="Create Menu Entry"
+    else
+	    item_07="Remove Menu Entry"
+    fi
+
+    last_backup="no backup found!"
+    if [ -s "$destination_dir/latest" ]; then
+        last_backup=$(readlink "$destination_dir/latest")
+    fi
+
+    # Show menu
+    result=$(zenity --list --radiolist --height=300 --ok-label="Ok" --cancel-label="Exit" --text="Last Backup:\t$last_backup\nSource:\t\t$source_dir\nDestination:\t$destination_dir\n" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07")
+
+    # If user exit
+    if [ $? = 1 ]; then
+        break; exit 0;
+    fi
+
+    if [ "$result" = "$item_01" ]; then
+        check_source_dir
+        check_destination_dir
+        check_rsync_script
+        show_exec_backup
+    fi
+    if [ "$result" = "$item_02" ]; then
+        check_destination_dir
+        show_browse_backup
+        exit 0
+    fi
+    if [ "$result" = "$item_03" ]; then
+        show_edit_source_dir
+    fi
+    if [ "$result" = "$item_04" ]; then
+        show_edit_destination_dir
+    fi
+    if [ "$result" = "$item_05" ]; then
+        show_edit_exclude
+    fi
+    if [ "$result" = "$item_06" ]; then
+        zenity --question --text="Update $rsync_script?"
+        if [ $? == 1 ]; then
+            exit 0;
+        fi
+        show_download_script
+    fi
+    if [ "$result" = "$item_07" ]; then
+        if [ ! -f "$desktop_file" ]; then
+            create_desktop_file
+        else
+            remove_desktop_file
+        fi
+    fi
+done

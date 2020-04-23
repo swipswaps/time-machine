@@ -1,11 +1,7 @@
 # Time Machine
+Minimal GUI for laurent22's rsync backup script.
 
-![d2launcher main](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/screenshot-menu.png)
-![d2launcher patches](https://raw.githubusercontent.com/murkl/d2launcher/master/res/screenshots/screenshot-patches.png)
-
-## Features
-* Downloads laurent22's rsync_tmbackup.sh
-
+![time-machine screenshop](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshot.png)
 
 ## Dependencies
 ### Arch

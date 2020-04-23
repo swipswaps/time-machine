@@ -1,5 +1,5 @@
 # Time Machine
-This simple backup tool uses zenity as frontend and laurent22's rsync script as backend.
+This simple backup tool uses zenity as frontend and [laurent22](https://github.com/laurent22/rsync-time-backup) rsync script as backend.
 
 Enjoy the simplicity :)
 

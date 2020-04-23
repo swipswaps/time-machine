@@ -34,7 +34,7 @@ fi
 if [ ! -f "$exclude_file" ]; then
 	echo "[Cc]ache*" >> $exclude_file
     echo "[Tt]rash*" >> $exclude_file
-	echo ".cache*" >> $exclude_file
+	echo ".cache" >> $exclude_file
     echo ".gvfs" >> $exclude_file
     echo "~*" >> $exclude_file
     log "$exclude_file created"
@@ -129,7 +129,7 @@ show_download_script() {
 replace_config_file_value() {
     key=$1
     value=$2
-    sed -i "/$key/c\\$key=$value" $script_config_file
+    sed -i "/$key=/c\\$key=$value" $script_config_file
 }
 
 check_rsync_script() {
@@ -180,6 +180,7 @@ remove_desktop_file() {
     send_notify "$desktop_file removed"
 }
 
+# Main
 while(true); do
     # Refresh config file
     . "$script_config_file"

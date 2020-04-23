@@ -1,6 +1,4 @@
 # Time Machine
-Minimal GUI for laurent22's rsync backup script.
-
 ![time-machine screenshop](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshot.png)
 
 ## Dependencies

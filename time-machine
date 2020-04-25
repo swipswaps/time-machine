@@ -129,7 +129,7 @@ show_download_script() {
 replace_config_file_value() {
     key=$1
     value=$2
-    sed -i "/$key=/c\\$key=$value" $script_config_file
+    sed -i "s#$key=.*#$key=\"$value\"#g" $script_config_file
 }
 
 check_rsync_script() {

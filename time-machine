@@ -69,10 +69,12 @@ zenity() {
 }
 
 show_zenity_info() {
+    log "$1"
     zenity --info --text "$1"
 }
 
 show_zenity_error() {
+    log "$1"
     zenity --error --text "$1"
 }
 
@@ -98,6 +100,7 @@ show_exec_backup() {
 }
 
 show_browse_backup() {
+    log "Browse $destination_dir"
     xdg-open "$destination_dir"
 }
 
@@ -126,8 +129,9 @@ show_edit_exclude() {
 }
 
 show_download_script() {
+    log "Download $rsync_script_url"
     (
-        curl -Lk $rsync_script_url -o "$rsync_script"
+        curl -Lk "$rsync_script_url" -o "$rsync_script"
         chmod +x "$rsync_script"
         echo "# $rsync_script successfully downloaded"
     ) | zenity --progress --text="Downloading $rsync_script" --auto-kill --pulsate
@@ -143,32 +147,37 @@ check_rsync_script() {
     if [ ! -f "$rsync_script" ]; then
         zenity --question --text="$rsync_script not found. Download now?"
         if [ $? = 1 ]; then
-            exit 0;
+            log "User canceled"
+            return 1;
         fi
         show_download_script
+        return 1
     fi
+    return 0
 }
 
 check_source_dir() {
     if [ "$source_dir" = "" ]; then
         show_zenity_error "You have to set source dir first!"
-        exit 1
+        return 1
     fi
     if [ ! -d "$source_dir" ]; then
-        show_zenity_error "$source_dir not exists!"
-        exit 1
+        show_zenity_error "Source: $source_dir not exists!"
+        return 1
     fi
+    return 0
 }
 
 check_destination_dir() {
     if [ "$destination_dir" = "" ]; then
         show_zenity_error "You have to set destination dir first!"
-        exit 1
+        return 1
     fi
     if [ ! -d "$destination_dir" ]; then
-        show_zenity_error "$destination_dir not exists!"
-        exit 1
+        show_zenity_error "Destination: $destination_dir not exists!"
+        return 1
     fi
+    return 0
 }
 
 create_desktop_file() {
@@ -220,13 +229,13 @@ while(true); do
     fi
 
     if [ "$result" = "$item_01" ]; then
-        check_source_dir
-        check_destination_dir
-        check_rsync_script
-        show_exec_backup
+        check_source_dir || continue
+        check_destination_dir || continue
+        check_rsync_script || continue
+        #show_exec_backup
     fi
     if [ "$result" = "$item_02" ]; then
-        check_destination_dir
+        check_destination_dir || continue
         show_browse_backup
         exit 0
     fi
@@ -242,7 +251,8 @@ while(true); do
     if [ "$result" = "$item_06" ]; then
         zenity --question --text="Update $rsync_script?"
         if [ $? = 1 ]; then
-            exit 0;
+            log "User canceled"
+            continue
         fi
         show_download_script
     fi

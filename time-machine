@@ -92,7 +92,7 @@ show_exec_backup() {
     mkdir "$log_dir"
     result_file="$log_dir/result.txt"
     touch "$destination_dir/backup.marker"
-    sleep 5 && sh "$rsync_script" --log-dir "$log_dir" "$source_dir" "$destination_dir" "$exclude_file"> "$result_file" & piped_pid=$!
+    sh "$rsync_script" --log-dir "$log_dir" "$source_dir" "$destination_dir" "$exclude_file"> "$result_file" & piped_pid=$!
     tail -f /dev/null --pid $piped_pid | ( zenity --progress --text="Backup in progress..." --pulsate --auto-close || kill $(list_children_pid $piped_pid) )
     send_notify "Backup finished"
     log_file="$log_dir/$(basename "$(ls "$log_dir"/*.log)")" 

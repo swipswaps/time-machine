@@ -9,7 +9,7 @@ script_id=$(basename "$script_file")
 
 script_res_dir="$script_dir/res"
 script_config_file="$script_res_dir/config"
-script_icon_file=$script_res_dir/icon.svg
+script_icon_file="$script_res_dir/icon.svg"
 
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 
@@ -20,49 +20,18 @@ exclude_file="$script_res_dir/exclude"
 log_dir="$script_dir/.log"
 
 # Config values
-source_dir=""
+source_dir="$HOME"
 destination_dir=""
+desktop_icon="true"
 
 log() {
 	echo "$(date "+%H:%M:%S") $script_id: $1"
 }
 
-# Create config file
-if [ ! -f "$script_config_file" ]; then
-	echo "source_dir=$HOME" >> "$script_config_file"
-	echo "destination_dir=" >> "$script_config_file"
-	log "$script_config_file file created"
-fi
-
-# Create exclude file
-if [ ! -f "$exclude_file" ]; then
-    {
-	    echo "[Cc]ache*"
-        echo "[Tt]rash*"
-	    echo ".cache"
-        echo ".gvfs"
-        echo "~*" 
-    } >> "$exclude_file"
-    log "$exclude_file created"
-fi
-
-# Import config file
-. "$script_config_file"
-
 send_notify() {
     log "$1"
     notify-send -i "$script_icon_file" "$script_title" "$1"
 }
-
-# Check dependencies
-if ! [ -x "$(command -v rsync)" ]; then
-	send_notify "rsync not installed"
-	exit 1;
-fi
-if ! [ -x "$(command -v xdg-open)" ]; then
-	send_notify "xdg-utils not installed"
-	exit 1;
-fi
 
 zenity() {
     /usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --height=140 --width=380 "$@" 2>/dev/null
@@ -97,11 +66,13 @@ show_exec_backup() {
     send_notify "Backup finished"
     log_file="$log_dir/$(basename "$(ls "$log_dir"/*.log)")" 
     zenity --text-info --window-icon="$script_icon_file" --width=700 --height=500 --filename="$log_file"
+    return 0
 }
 
 show_browse_backup() {
     log "Browse $destination_dir"
     xdg-open "$destination_dir"
+    return 0
 }
 
 show_edit_source_dir() {
@@ -109,7 +80,9 @@ show_edit_source_dir() {
     if [ "$directory" != "" ]; then
         replace_config_file_value "source_dir" "$directory"
         send_notify "Source directory changed to: $directory"
+        return 1
     fi
+    return 0
 }
 
 show_edit_destination_dir() {
@@ -117,7 +90,9 @@ show_edit_destination_dir() {
     if [ "$directory" != "" ]; then
         replace_config_file_value "destination_dir" "$directory"
         send_notify "Destination directory changed to: $directory"
+        return 1
     fi
+    return 0
 }
 
 show_edit_exclude() {
@@ -125,7 +100,9 @@ show_edit_exclude() {
     if [ $? = 0 ]; then
         echo "$res" > "$exclude_file"
         send_notify "Exclude list saved"
+        return 1
     fi
+    return 0
 }
 
 show_download_script() {
@@ -135,12 +112,14 @@ show_download_script() {
         chmod +x "$rsync_script"
         echo "# $rsync_script successfully downloaded"
     ) | zenity --progress --text="Downloading $rsync_script" --auto-kill --pulsate
+    return 0
 }
 
 replace_config_file_value() {
     key=$1
     value=$2
     sed -i "s#$key=.*#$key=\"$value\"#g" "$script_config_file"
+    return 0
 }
 
 check_rsync_script() {
@@ -181,27 +160,73 @@ check_destination_dir() {
 }
 
 create_desktop_file() {
-    rm -f "$desktop_file"
-    {
-        echo "[Desktop Entry]"
-        echo "Name=$script_title" 
-        echo "Icon=$script_icon_file"
-        echo "Exec=\"$script_file\""
-        echo "Type=Application"
-    } >> "$desktop_file"
-    chmod +x "$desktop_file"
-    send_notify "$desktop_file created"
+    if [ ! -f "$desktop_file" ]; then
+        rm -f "$desktop_file"
+        {
+            echo "[Desktop Entry]"
+            echo "Name=$script_title" 
+            echo "Icon=$script_icon_file"
+            echo "Exec=\"$script_file\""
+            echo "Type=Application"
+        } >> "$desktop_file"
+        chmod +x "$desktop_file"
+        send_notify "$desktop_file created"
+        return 1
+    fi
+    return 0
 }
 
 remove_desktop_file() {
-    rm -f "$desktop_file"
-    send_notify "$desktop_file removed"
+    if [ -f "$desktop_file" ]; then
+        rm -f "$desktop_file"
+        send_notify "$desktop_file removed"
+        return 1
+    fi
+    return 0
 }
+
+# Check dependencies
+if ! [ -x "$(command -v rsync)" ]; then
+	send_notify "rsync not installed"
+	exit 1
+fi
+if ! [ -x "$(command -v xdg-open)" ]; then
+	send_notify "xdg-utils not installed"
+	exit 1
+fi
+
+# Create config file
+if [ ! -f "$script_config_file" ]; then
+	echo "source_dir=\"$source_dir\"" >> "$script_config_file"
+	echo "destination_dir=\"$destination_dir\"" >> "$script_config_file"
+	echo "desktop_icon=\"$desktop_icon\"" >> "$script_config_file"
+	log "$script_config_file file created"
+fi
+
+# Create exclude file
+if [ ! -f "$exclude_file" ]; then
+    {
+	    echo "[Cc]ache*"
+        echo "[Tt]rash*"
+	    echo ".cache"
+        echo ".gvfs"
+        echo "~*" 
+    } >> "$exclude_file"
+    log "$exclude_file created"
+fi
 
 # Main
 while(true); do
-    # Refresh config file
+
+    # Import config file
     . "$script_config_file"
+    
+    # Create or remove desktop icon
+	if [ "$desktop_icon" = "true" ]; then
+		create_desktop_file
+	else
+		remove_desktop_file
+	fi
 
     item_01="Start Backup"
     item_02="Browse Backup"
@@ -209,11 +234,6 @@ while(true); do
     item_04="Change Destination"
     item_05="Edit Exclude List"
     item_06="Update Script"
-    if [ ! -f "$desktop_file" ]; then
-	    item_07="Create Icon"
-    else
-	    item_07="Remove Icon"
-    fi
 
     last_backup="no backup found"
     if [ -s "$destination_dir/latest" ]; then
@@ -221,7 +241,7 @@ while(true); do
     fi
 
     # Show menu
-    result=$(zenity --list --radiolist --height=300 --ok-label="Ok" --cancel-label="Exit" --text='<span font-family="monospace"><small><b>Last Backup:</b>\t'"$last_backup"'\n<b>Source:</b>\t\t'"$source_dir"'\n<b>Destination:</b>\t'"$destination_dir"'\n</small></span>' --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07")
+    result=$(zenity --list --radiolist --height=300 --ok-label="Ok" --cancel-label="Exit" --text='<span font-family="monospace"><small><b>Last Backup:</b>\t'"$last_backup"'\n<b>Source:</b>\t\t'"$source_dir"'\n<b>Destination:</b>\t'"$destination_dir"'\n</small></span>' --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06")
 
     # If user exit
     if [ $? = 1 ]; then
@@ -232,7 +252,7 @@ while(true); do
         check_source_dir || continue
         check_destination_dir || continue
         check_rsync_script || continue
-        #show_exec_backup
+        show_exec_backup
     fi
     if [ "$result" = "$item_02" ]; then
         check_destination_dir || continue
@@ -256,11 +276,5 @@ while(true); do
         fi
         show_download_script
     fi
-    if [ "$result" = "$item_07" ]; then
-        if [ ! -f "$desktop_file" ]; then
-            create_desktop_file
-        else
-            remove_desktop_file
-        fi
-    fi
+
 done

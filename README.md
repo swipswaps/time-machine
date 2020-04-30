@@ -5,7 +5,7 @@ Enjoy the simplicity :)
 
 ![time-machine menu](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshots/menu.png)
 ![time-machine configuration](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshots/configuration.png)
-![time-machine exclude](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshots/configuration.png)
+![time-machine exclude](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshots/exclude.png)
 
 ## Dependencies
 ### Arch

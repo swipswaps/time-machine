@@ -3,6 +3,7 @@
 
 script_title="Time Machine"
 
+# Script
 script_file=$(readlink -f "$0")
 script_dir=$(dirname "$script_file")
 script_id=$(basename "$script_file")
@@ -11,18 +12,23 @@ script_res_dir="$script_dir/res"
 script_config_file="$script_res_dir/config"
 script_icon_file="$script_res_dir/icon.svg"
 
+# Gui
+gui_width=432
+gui_height=271
+gui_dialog_height=180
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
+desktop_icon=true
 
-rsync_script_url="https://raw.githubusercontent.com/laurent22/rsync-time-backup/master/rsync_tmbackup.sh"
-rsync_script="$script_res_dir/rsync_tmbackup.sh"
-
+# Backup
+source_dir="$HOME"
+destination_dir=""
 exclude_file="$script_res_dir/exclude"
 log_dir="$script_dir/.log"
 
-# Config values
-source_dir="$HOME"
-destination_dir=""
-desktop_icon="true"
+# Rsync
+rsync_script_url="https://raw.githubusercontent.com/laurent22/rsync-time-backup/master/rsync_tmbackup.sh"
+rsync_script="$script_res_dir/rsync_tmbackup.sh"
+
 
 log() {
 	echo "$(date "+%H:%M:%S") $script_id: $1"
@@ -47,8 +53,21 @@ if ! [ -x "$(command -v xdg-open)" ]; then
 	exit 1;
 fi
 
+# Create config file
+if [ ! -f "$script_config_file" ]; then
+	echo "source_dir=\"$source_dir\"" >> "$script_config_file"
+	echo "destination_dir=\"$destination_dir\"" >> "$script_config_file"
+    echo "gui_height=$gui_height"
+    echo "gui_width=$gui_width"
+	echo "desktop_icon=\"$desktop_icon\"" >> "$script_config_file"
+	log "$script_config_file file created"
+fi
+
+# Import config file
+. "$script_config_file"
+
 zenity() {
-    /usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --height=140 --width=380 "$@" 2>/dev/null
+    /usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_dialog_height" "$@" 2>/dev/null
 }
 
 show_zenity_info() {
@@ -79,7 +98,7 @@ show_exec_backup() {
     tail -f /dev/null --pid $piped_pid | ( zenity --progress --text="Backup in progress..." --pulsate --auto-close || kill $(list_children_pid $piped_pid) )
     send_notify "Backup finished"
     log_file="$log_dir/$(basename "$(ls "$log_dir"/*.log)")" 
-    zenity --text-info --window-icon="$script_icon_file" --width=700 --height=500 --filename="$log_file"
+    zenity --text-info --window-icon="$script_icon_file" --width=600 --height="$gui_height" --filename="$log_file"
     return 0
 }
 
@@ -110,7 +129,7 @@ show_edit_destination_dir() {
 }
 
 show_edit_exclude() {
-    res=$(zenity --text-info --height=300 --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$exclude_file")
+    res=$(zenity --text-info --height="$gui_height" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$exclude_file")
     if [ $? = 0 ]; then
         echo "$res" > "$exclude_file"
         send_notify "Exclude list saved"
@@ -126,6 +145,15 @@ show_download_script() {
         chmod +x "$rsync_script"
         echo "# $rsync_script successfully downloaded"
     ) | zenity --progress --text="Downloading $rsync_script" --auto-kill --pulsate
+    return 0
+}
+
+show_edit_configuration() {
+    result=$(zenity --text-info --height="$gui_height" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
+    if [ $? = 0 ]; then
+        echo "$result" > "$script_config_file"
+        send_notify "$script_config_file saved"
+    fi
     return 0
 }
 
@@ -199,13 +227,7 @@ remove_desktop_file() {
     return 0
 }
 
-# Create config file
-if [ ! -f "$script_config_file" ]; then
-	echo "source_dir=\"$source_dir\"" >> "$script_config_file"
-	echo "destination_dir=\"$destination_dir\"" >> "$script_config_file"
-	echo "desktop_icon=\"$desktop_icon\"" >> "$script_config_file"
-	log "$script_config_file file created"
-fi
+
 
 # Create exclude file
 if [ ! -f "$exclude_file" ]; then
@@ -238,6 +260,7 @@ while(true); do
     item_04="Change Destination"
     item_05="Edit Exclude List"
     item_06="Update Script"
+    item_07="Configuration"
 
     last_backup="no backup found"
     if [ -s "$destination_dir/latest" ]; then
@@ -245,13 +268,12 @@ while(true); do
     fi
 
     # Show menu
-    result=$(zenity --list --radiolist --height=300 --ok-label="Ok" --cancel-label="Exit" --text='<span font-family="monospace"><small><b>Last Backup:</b>\t'"$last_backup"'\n<b>Source:</b>\t\t'"$source_dir"'\n<b>Destination:</b>\t'"$destination_dir"'\n</small></span>' --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06")
+    result=$(zenity --list --height="$gui_height" --radiolist --ok-label="Ok" --cancel-label="Exit" --text='<span font-family="monospace"><small><b>Last Backup:</b>\t'"$last_backup"'\n<b>Source:</b>\t\t'"$source_dir"'\n<b>Destination:</b>\t'"$destination_dir"'\n</small></span>' --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07")
 
     # If user exit
     if [ $? = 1 ]; then
         break; exit 0;
     fi
-
     if [ "$result" = "$item_01" ]; then
         check_source_dir || continue
         check_destination_dir || continue
@@ -280,5 +302,8 @@ while(true); do
         fi
         show_download_script
     fi
-
+    if [ "$result" = "$item_07" ]; then
+        show_edit_configuration
+    fi
+    
 done

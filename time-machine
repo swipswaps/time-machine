@@ -55,16 +55,30 @@ fi
 
 # Create config file
 if [ ! -f "$script_config_file" ]; then
-	echo "source_dir=\"$source_dir\"" >> "$script_config_file"
-	echo "destination_dir=\"$destination_dir\"" >> "$script_config_file"
-    echo "gui_height=$gui_height"
-    echo "gui_width=$gui_width"
-	echo "desktop_icon=\"$desktop_icon\"" >> "$script_config_file"
+    {
+	    echo "source_dir=\"$source_dir\""
+	    echo "destination_dir=\"$destination_dir\"" 
+        echo "gui_width=$gui_width"
+        echo "gui_height=$gui_height"
+        echo "desktop_icon=$desktop_icon"
+    } >> "$script_config_file"
 	log "$script_config_file file created"
 fi
 
 # Import config file
 . "$script_config_file"
+
+# Create exclude file
+if [ ! -f "$exclude_file" ]; then
+    {
+	    echo "[Cc]ache*"
+        echo "[Tt]rash*"
+	    echo ".cache"
+        echo ".gvfs"
+        echo "~*" 
+    } >> "$exclude_file"
+    log "$exclude_file created"
+fi
 
 zenity() {
     /usr/bin/zenity --name="$script_id" --title="$script_title" --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_dialog_height" "$@" 2>/dev/null
@@ -226,20 +240,6 @@ remove_desktop_file() {
     fi
     return 0
 }
-
-
-
-# Create exclude file
-if [ ! -f "$exclude_file" ]; then
-    {
-	    echo "[Cc]ache*"
-        echo "[Tt]rash*"
-	    echo ".cache"
-        echo ".gvfs"
-        echo "~*" 
-    } >> "$exclude_file"
-    log "$exclude_file created"
-fi
 
 # Main
 while(true); do

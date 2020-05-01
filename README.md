@@ -5,6 +5,26 @@ Enjoy the simplicity :)
 
 ![time-machine screenshot](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshot.png)
 
+
+## Features
+* Robust error handling (backup can be canceled)
+* Configuration of every script variable
+* rsync-time-backup.sh aguments support
+* Update feature (incl. notification)
+* 100% GUI 
+
+## Example Configuration
+```
+# readme: https://github.com/laurent22/rsync-time-backup#usage
+rsync_arguments="-p 2222"
+source_dir="$HOME"
+destination_dir="user@example.com:/mnt/backup_drive"
+gui_width=479
+gui_height=279
+desktop_icon=true
+update_check=true
+```
+
 ## Dependencies
 ### Arch
 ```

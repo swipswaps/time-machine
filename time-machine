@@ -1,6 +1,6 @@
 #!/bin/bash
 # https://github.com/murkl/time-machine
-version=2.0.1
+version=2.0.2
 
 github_author=murkl
 github_repo=time-machine
@@ -38,7 +38,7 @@ log_dir="$script_dir/.log"
 # Rsync
 rsync_script_url="https://raw.githubusercontent.com/laurent22/rsync-time-backup/master/rsync_tmbackup.sh"
 rsync_script="$script_res_dir/rsync_tmbackup.sh"
-
+rsync_arguments=""
 
 log() {
 	echo "$(date "+%H:%M:%S") $script_id: $1"
@@ -66,8 +66,9 @@ fi
 # Create config file
 if [ ! -f "$script_config_file" ]; then
     {
+	    echo "rsync_arguments=\"$rsync_arguments\""
 	    echo "source_dir=\"$source_dir\""
-	    echo "destination_dir=\"$destination_dir\"" 
+	    echo "destination_dir=\"$destination_dir\""
         echo "gui_width=$gui_width"
         echo "gui_height=$gui_height"
         echo "desktop_icon=$desktop_icon"
@@ -138,9 +139,10 @@ show_exec_backup() {
     mkdir "$log_dir"
     result_file="$log_dir/result.txt"
     touch "$destination_dir/backup.marker"
-    sh "$rsync_script" --log-dir "$log_dir" "$source_dir" "$destination_dir" "$exclude_file"> "$result_file" & piped_pid=$!
+    sh "$rsync_script" $rsync_arguments --log-dir "$log_dir" "$source_dir" "$destination_dir" "$exclude_file" > "$result_file" & piped_pid=$!
     tail -f /dev/null --pid $piped_pid | ( zenity --progress --text="Backup in progress..." --pulsate --auto-close || kill $(list_children_pid $piped_pid) )
     send_notify "Backup finished"
+    cat "$result_file"
     log_file="$log_dir/$(basename "$(ls "$log_dir"/*.log)")" 
     zenity --text-info --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" --filename="$log_file"
     return 0
@@ -207,7 +209,7 @@ show_update_gui() {
         latest_zip=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip" -o "$tmp_dir/zipball.zip"
 		unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
-		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
+		unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
 		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
         chmod +x "$script_file"
         
@@ -377,5 +379,4 @@ while(true); do
     if [ "$result" = "$item_07" ]; then
         show_edit_configuration
     fi
-    
 done

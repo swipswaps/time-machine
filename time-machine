@@ -1,6 +1,6 @@
 #!/bin/bash
 # https://github.com/murkl/time-machine
-version=2.0.0
+version=2.0.1
 
 github_author=murkl
 github_repo=time-machine
@@ -15,6 +15,7 @@ script_id=$(basename "$script_file")
 script_res_dir="$script_dir/res"
 script_config_file="$script_res_dir/config"
 script_icon_file="$script_res_dir/icon.svg"
+update_check=true
 
 # Gui
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
@@ -70,6 +71,7 @@ if [ ! -f "$script_config_file" ]; then
         echo "gui_width=$gui_width"
         echo "gui_height=$gui_height"
         echo "desktop_icon=$desktop_icon"
+        echo "update_check=$update_check"
     } >> "$script_config_file"
 	log "$script_config_file file created"
 fi
@@ -101,6 +103,25 @@ show_zenity_info() {
 show_zenity_error() {
     log "$1"
     zenity --error --text "$1"
+}
+
+show_zenity_question() {
+    zenity --question --text "$1"
+    return "$?"
+}
+
+check_for_update() {
+    if [ "$update_check" = "false" ]; then
+        return 0
+    fi
+    latest_version=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name')
+    if [ "$version" != "$latest_version" ]; then
+        send_notify "New update available!"
+        return 1
+    else
+        log "No update available. (latest version: $latest_version)"
+        return 0
+    fi
 }
 
 list_children_pid () {
@@ -162,7 +183,19 @@ show_edit_exclude() {
 }
 
 show_update_gui() {
-    zenity --question --text "Installed version:\t<b>$script_id-$version</b>\n\n<b>All local tracked git files will be reseted!</b>\n\nReally update?"
+
+    tmp_file="/tmp/$script_id.version"
+    rm -f "$tmp_file"
+    ( curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name' > "$tmp_file" )| zenity --progress --text="Fetching latest $script_id version" --pulsate --auto-close
+    latest_version=$(< "$tmp_file")
+
+    version_info_text="No Update available!\n\n<b>Force update?</b>"
+    if [ "$version" != "$latest_version" ]; then
+        version_info_text="<b>New update available!</b>\n\nInstall update now?"
+    fi
+    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text\n"
+	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">'$version_text'</span>'
+    show_zenity_question "$update_info"
     if [ $? = 1 ]; then
         log "User canceled"
         return 1
@@ -182,10 +215,13 @@ show_update_gui() {
         curl -Lk "$rsync_script_url" -o "$rsync_script"
         chmod +x "$rsync_script"
         
-        echo "# $script_id successfully updated"
+        echo "# $script_id $latest_version successfully installed"
         
-    ) | zenity --progress --text="Updating $script_id" --pulsate
-    return 0
+    ) | zenity --progress --text="Updating $script_id-$latest_version" --pulsate
+    
+    # Restart script
+    "$script_file" &
+    exit 0
 }
 
 show_download_script() {
@@ -216,7 +252,7 @@ replace_config_file_value() {
 
 check_rsync_script() {
     if [ ! -f "$rsync_script" ]; then
-        zenity --question --text="$rsync_script not found. Download now?"
+        show_zenity_question "$rsync_script not found. Download now?"
         if [ $? = 1 ]; then
             log "User canceled"
             return 1;
@@ -276,6 +312,8 @@ remove_desktop_file() {
     fi
     return 0
 }
+
+check_for_update &
 
 # Main
 while(true); do

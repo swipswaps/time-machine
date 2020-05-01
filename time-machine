@@ -1,5 +1,9 @@
 #!/bin/bash
 # https://github.com/murkl/time-machine
+version=2.0.0
+
+github_author=murkl
+github_repo=time-machine
 
 script_title="Time Machine"
 
@@ -13,11 +17,16 @@ script_config_file="$script_res_dir/config"
 script_icon_file="$script_res_dir/icon.svg"
 
 # Gui
-gui_width=432
-gui_height=271
-gui_dialog_height=180
 desktop_file="$HOME/.local/share/applications/$script_id.desktop"
 desktop_icon=true
+gui_width=479
+gui_height=279
+gui_dialog_height=179
+
+# Title theming
+title_color="#688000"
+title_font="monospace"
+title_size="8"
 
 # Backup
 source_dir="$HOME"
@@ -112,7 +121,7 @@ show_exec_backup() {
     tail -f /dev/null --pid $piped_pid | ( zenity --progress --text="Backup in progress..." --pulsate --auto-close || kill $(list_children_pid $piped_pid) )
     send_notify "Backup finished"
     log_file="$log_dir/$(basename "$(ls "$log_dir"/*.log)")" 
-    zenity --text-info --window-icon="$script_icon_file" --width=600 --height="$gui_height" --filename="$log_file"
+    zenity --text-info --window-icon="$script_icon_file" --width="$gui_width" --height="$gui_height" --filename="$log_file"
     return 0
 }
 
@@ -149,6 +158,33 @@ show_edit_exclude() {
         send_notify "Exclude list saved"
         return 1
     fi
+    return 0
+}
+
+show_update_gui() {
+    zenity --question --text "Installed version:\t<b>$script_id-$version</b>\n\n<b>All local tracked git files will be reseted!</b>\n\nReally update?"
+    if [ $? = 1 ]; then
+        log "User canceled"
+        return 1
+    fi
+    (
+        tmp_dir=/tmp/$script_id.tmp
+        rm -R -f "$tmp_dir"
+        mkdir -p "$tmp_dir"
+        latest_zip=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].zipball_url')
+        curl -Lk "$latest_zip" -o "$tmp_dir/zipball.zip"
+		unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
+		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
+		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
+        chmod +x "$script_file"
+        
+        echo "# Downloading $rsync_script"
+        curl -Lk "$rsync_script_url" -o "$rsync_script"
+        chmod +x "$rsync_script"
+        
+        echo "# $script_id successfully updated"
+        
+    ) | zenity --progress --text="Updating $script_id" --pulsate
     return 0
 }
 
@@ -259,7 +295,7 @@ while(true); do
     item_03="Change Source"
     item_04="Change Destination"
     item_05="Edit Exclude List"
-    item_06="Update Script"
+    item_06="Update"
     item_07="Configuration"
 
     last_backup="no backup found"
@@ -268,7 +304,9 @@ while(true); do
     fi
 
     # Show menu
-    result=$(zenity --list --height="$gui_height" --radiolist --ok-label="Ok" --cancel-label="Exit" --text='<span font-family="monospace"><small><b>Last Backup:</b>\t'"$last_backup"'\n<b>Source:</b>\t\t'"$source_dir"'\n<b>Destination:</b>\t'"$destination_dir"'\n</small></span>' --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07")
+    menu_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">Time Machine\t<b>'$version'</b>\nLast Backup\t<b>'$last_backup'</b>\nSource\t\t<b>'$source_dir'</b>\nDestination\t<b>'$destination_dir'</b>
+    </span>'
+    result=$(zenity --list --height="$gui_height" --radiolist --ok-label="Ok" --cancel-label="Exit" --text="$menu_info" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07")
 
     # If user exit
     if [ $? = 1 ]; then
@@ -295,12 +333,8 @@ while(true); do
         show_edit_exclude
     fi
     if [ "$result" = "$item_06" ]; then
-        zenity --question --text="Update $rsync_script?"
-        if [ $? = 1 ]; then
-            log "User canceled"
-            continue
-        fi
-        show_download_script
+        show_update_gui || continue
+        break; exit 0;
     fi
     if [ "$result" = "$item_07" ]; then
         show_edit_configuration

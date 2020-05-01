@@ -3,9 +3,7 @@ This simple backup tool uses zenity as frontend and [laurent22](https://github.c
 
 Enjoy the simplicity :)
 
-![time-machine menu](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshots/menu.png)
-![time-machine configuration](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshots/configuration.png)
-![time-machine exclude](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshots/exclude.png)
+![time-machine screenshot](https://raw.githubusercontent.com/murkl/time-machine/master/res/screenshot.png)
 
 ## Dependencies
 ### Arch

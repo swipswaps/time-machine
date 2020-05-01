@@ -191,12 +191,12 @@ show_update_gui() {
     ( curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name' > "$tmp_file" )| zenity --progress --text="Fetching latest $script_id version" --pulsate --auto-close
     latest_version=$(< "$tmp_file")
 
-    version_info_text="No Update available!\n\n<b>Force update?</b>"
+    version_info_text="No update available!\n\nForce install update <b>$latest_version</b>?"
     if [ "$version" != "$latest_version" ]; then
-        version_info_text="<b>New update available!</b>\n\nInstall update now?"
+        version_info_text="<b>New update available!</b>\n\nInstall update <b>$latest_version</b> now?"
     fi
-    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text\n"
-	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">'$version_text'</span>'
+    version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
+	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>'$script_title' Updater</b>\n\n'$version_text'</span>'
     show_zenity_question "$update_info"
     if [ $? = 1 ]; then
         log "User canceled"
@@ -209,7 +209,7 @@ show_update_gui() {
         latest_zip=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].zipball_url')
         curl -Lk "$latest_zip" -o "$tmp_dir/zipball.zip"
 		unzip -o "$tmp_dir/zipball.zip" -d "$tmp_dir/"
-		unziped_dir=$(find "$tmp_dir" -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
+		unziped_dir=$(find $tmp_dir -maxdepth 1 -name "$github_author-$github_repo-*" -printf "%f")
 		cp -f -R "$tmp_dir/$unziped_dir/"* "$script_dir"
         chmod +x "$script_file"
         
@@ -335,8 +335,8 @@ while(true); do
     item_03="Change Source"
     item_04="Change Destination"
     item_05="Edit Exclude List"
-    item_06="Update"
-    item_07="Configuration"
+    item_06="Configuration"
+    item_07="Update"
 
     last_backup="no backup found"
     if [ -s "$destination_dir/latest" ]; then
@@ -344,7 +344,7 @@ while(true); do
     fi
 
     # Show menu
-    menu_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'">Time Machine\t<b>'$version'</b>\nLast Backup\t<b>'$last_backup'</b>\nSource\t\t<b>'$source_dir'</b>\nDestination\t<b>'$destination_dir'</b>
+    menu_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>Time Machine</b>\t'$version'\n<b>Last Backup</b>\t'$last_backup'\n<b>Source</b>\t\t'$source_dir'\n<b>Destination</b>\t'$destination_dir'
     </span>'
     result=$(zenity --list --height="$gui_height" --radiolist --ok-label="Ok" --cancel-label="Exit" --text="$menu_info" --hide-header --column="" --column="" TRUE "$item_01" FALSE "$item_02" FALSE "$item_03" FALSE "$item_04" FALSE "$item_05" FALSE "$item_06" FALSE "$item_07")
 
@@ -373,10 +373,11 @@ while(true); do
         show_edit_exclude
     fi
     if [ "$result" = "$item_06" ]; then
+        show_edit_configuration
+    fi
+    if [ "$result" = "$item_07" ]; then
         show_update_gui || continue
         break; exit 0;
     fi
-    if [ "$result" = "$item_07" ]; then
-        show_edit_configuration
-    fi
+
 done

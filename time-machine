@@ -116,13 +116,11 @@ check_for_update() {
         return 0
     fi
     latest_version=$(curl --silent "https://api.github.com/repos/$github_author/$github_repo/tags" | jq -r '.[0].name')
-    if [ "$version" != "$latest_version" ]; then
-        send_notify "New update available!"
-        return 1
-    else
-        log "No update available. (latest version: $latest_version)"
+    if [ "$version" = "$latest_version" ]; then
+        log "No update available. (latest $script_id version: $latest_version)"
         return 0
     fi
+    return 1
 }
 
 list_children_pid () {
@@ -196,7 +194,7 @@ show_update_gui() {
         version_info_text="<b>New update available!</b>\n\nInstall update <b>$latest_version</b> now?"
     fi
     version_text="Installed version:\t<b>$version</b>\nRemote version:\t\t<b>$latest_version</b>\n\n$version_info_text"
-	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>'$script_title' Updater</b>\n\n'$version_text'</span>'
+	update_info='<span font_family="'$title_font'" foreground="'$title_color'" font="'$title_size'"><b>'$script_id' Updater</b>\n\n'$version_text'</span>'
     show_zenity_question "$update_info"
     if [ $? = 1 ]; then
         log "User canceled"

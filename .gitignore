@@ -2,3 +2,4 @@
 res/config
 res/exclude
 res/rsync_tmbackup.sh
+*~

@@ -8,11 +8,11 @@ Enjoy the simplicity :)
 ## Dependencies
 ### Arch
 ```
-sudo pacman -S rsync xdg-utils
+sudo pacman -S zenity rsync xdg-utils
 ```
 ### Debian/Ubuntu/elementaryOS
 ```
-sudo apt install rsync xdg-utils
+sudo apt install zenity rsync xdg-utils
 ```
 
 ## Run the script

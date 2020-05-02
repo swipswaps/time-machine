@@ -1,6 +1,6 @@
 #!/bin/bash
 # https://github.com/murkl/time-machine
-version=2.0.5
+version=2.0.6
 
 github_author=murkl
 github_repo=time-machine

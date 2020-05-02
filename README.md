@@ -7,6 +7,8 @@ Enjoy the simplicity :)
 
 
 ## Features
+* Sanbox architecture
+* Less dependencies
 * Robust error handling (backup can be canceled)
 * Configuration of every script variable
 * rsync-time-backup.sh aguments support

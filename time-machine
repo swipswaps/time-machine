@@ -54,6 +54,10 @@ if ! [ -x "$(command -v zenity)" ]; then
 	send_notify "zenity not installed"
 	exit 1;
 fi
+if ! [ -x "$(command -v curl)" ]; then
+	send_notify "curl not installed"
+	exit 1;
+fi
 if ! [ -x "$(command -v rsync)" ]; then
 	send_notify "rsync not installed"
 	exit 1;
@@ -111,6 +115,12 @@ show_zenity_question() {
     return "$?"
 }
 
+restart_script() {
+    log "Restarting script..."
+    "$script_file" &
+    exit 0;
+}
+
 check_for_update() {
     if [ "$update_check" = "false" ]; then
         return 0
@@ -160,7 +170,7 @@ show_edit_source_dir() {
     directory=$(zenity --file-selection --directory)
     if [ "$directory" != "" ]; then
         replace_config_file_value "source_dir" "$directory"
-        send_notify "Source directory changed to: $directory"
+        log "Source directory changed to: $directory"
         return 1
     fi
     return 0
@@ -170,7 +180,7 @@ show_edit_destination_dir() {
     directory=$(zenity --file-selection --directory)
     if [ "$directory" != "" ]; then
         replace_config_file_value "destination_dir" "$directory"
-        send_notify "Destination directory changed to: $directory"
+        log "Destination directory changed to: $directory"
         return 1
     fi
     return 0
@@ -228,8 +238,7 @@ show_update_gui() {
     ) | zenity --progress --text="Updating $script_id-$latest_version" --pulsate
     
     # Restart script
-    "$script_file" &
-    exit 0
+    restart_script
 }
 
 show_download_script() {
@@ -242,11 +251,12 @@ show_download_script() {
     return 0
 }
 
-show_edit_configuration() {
+show_edit_config() {
     result=$(zenity --text-info --height="$gui_height" --ok-label="Save" --cancel-label="Cancel" --font="monospace" --editable --filename="$script_config_file")
     if [ $? = 0 ]; then
         echo "$result" > "$script_config_file"
-        send_notify "$script_config_file saved"
+        send_notify "Configuration saved"
+        return 1
     fi
     return 0
 }
@@ -306,7 +316,7 @@ create_desktop_file() {
             echo "Type=Application"
         } >> "$desktop_file"
         chmod +x "$desktop_file"
-        send_notify "$desktop_file created"
+        log "$desktop_file created"
         return 1
     fi
     return 0
@@ -315,7 +325,7 @@ create_desktop_file() {
 remove_desktop_file() {
     if [ -f "$desktop_file" ]; then
         rm -f "$desktop_file"
-        send_notify "$desktop_file removed"
+        log "$desktop_file removed"
         return 1
     fi
     return 0
@@ -379,11 +389,10 @@ while(true); do
         show_edit_exclude
     fi
     if [ "$result" = "$item_06" ]; then
-        show_edit_configuration
+        show_edit_config || restart_script
     fi
     if [ "$result" = "$item_07" ]; then
-        show_update_gui || continue
-        break; exit 0;
+        show_update_gui || restart_script
     fi
 
 done

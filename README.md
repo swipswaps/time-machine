@@ -30,11 +30,11 @@ update_check=true
 ## Dependencies
 ### Arch
 ```
-sudo pacman -S zenity rsync xdg-utils
+sudo pacman -S zenity rsync curl xdg-utils
 ```
 ### Debian/Ubuntu/elementaryOS
 ```
-sudo apt install zenity rsync xdg-utils
+sudo apt install zenity rsync curl xdg-utils
 ```
 
 ## Run the script
